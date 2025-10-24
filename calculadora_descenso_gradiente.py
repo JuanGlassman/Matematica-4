@@ -2,93 +2,84 @@ import numpy as np
 import pandas as pd
 
 # ---------------------------
-# CARGA DE DATOS DESDE CSV
+# CARGA DE DATOS
 # ---------------------------
 df = pd.read_csv("dataset_Facebook.csv", sep=";")
 
-# Mostrar las columnas disponibles
-print("Columnas disponibles:\n", df.columns, "\n")
+# Seleccionar columnas de interés y eliminar filas con NaN
+cols = ["Total Interactions", "like", "comment", "share", "Category", "Post Hour", "Post Month"]
+df = df[cols].dropna()
 
-# ---------------------------
-# SELECCIÓN Y LIMPIEZA DE DATOS
-# ---------------------------
-# Eliminar filas con valores faltantes en las columnas necesarias
-df = df.dropna(subset=["Total Interactions", "like", "comment", "share", "Category", "Post Hour", "Post Month"])
-
-# Definir variables dependiente e independientes
+# Variables dependiente e independientes
 Y = df["Total Interactions"].to_numpy(dtype=float)
 X = df[["like", "comment", "share", "Category", "Post Hour", "Post Month"]].to_numpy(dtype=float)
 
 # ---------------------------
-# NORMALIZACIÓN (para mejorar la convergencia)
+# NORMALIZACIÓN
 # ---------------------------
-X = (X - np.mean(X, axis=0)) / np.std(X, axis=0)
+X_mean = np.mean(X, axis=0)
+X_std = np.std(X, axis=0)
+X_norm = (X - X_mean) / X_std
 
-# Agregar columna de 1s para el intercepto β0
+# Agregar columna de 1s para el intercepto
 m = len(Y)
-X = np.hstack((np.ones((m, 1)), X))
+X_norm = np.hstack((np.ones((m, 1)), X_norm))
 
 # ---------------------------
-# PARÁMETROS
+# PARÁMETROS DESCENSO DEL GRADIENTE
 # ---------------------------
-e = 1e-6     # tolerancia (ε)
-n = 0.01     # tasa de aprendizaje (η)
-betas = np.zeros(X.shape[1])  # β iniciales
+eta = 0.01       # tasa de aprendizaje
+epsilon = 1e-6   # tolerancia
+betas = np.zeros(X_norm.shape[1])
 max_iter = 100000
-i = 1
 
-# ---------------------------
-# FUNCIONES
-# ---------------------------
-def f(betas):
-    """Función de costo: Error cuadrático medio (MSE)"""
-    Y_pred = X.dot(betas)
+# Función de costo (MSE)
+def mse(betas):
+    Y_pred = X_norm.dot(betas)
     return np.mean((Y - Y_pred) ** 2)
 
+# Gradiente del MSE
 def gradiente(betas):
-    """Gradiente del MSE respecto a β"""
-    Y_pred = X.dot(betas)
+    Y_pred = X_norm.dot(betas)
     error = Y_pred - Y
-    return (2/m) * X.T.dot(error)
+    return (2/m) * X_norm.T.dot(error)
 
-def corte(b0, b1):
-    """Condición de corte: cambio pequeño en la función de costo"""
-    return abs(f(b1) - f(b0)) < e
+# Condición de corte
+def convergencia(b0, b1):
+    return abs(mse(b1) - mse(b0)) < epsilon
 
 # ---------------------------
 # DESCENSO DEL GRADIENTE
 # ---------------------------
-print("Iteraciones paso a paso:\n")
-
+i = 1
 while True:
     grad = gradiente(betas)
-    betas_nuevas = betas - n * grad
-    f_old = f(betas)
-    f_new = f(betas_nuevas)
-    diff = abs(f_new - f_old)
-    
+    betas_nuevas = betas - eta * grad
     if i % 1000 == 0:
-        print(f"Iteración {i}: costo = {f_new:.6f}, Δ={diff:.6e}")
-
-    if corte(betas, betas_nuevas) or i >= max_iter:
+        print(f"Iteración {i}: costo = {mse(betas_nuevas):.6f}")
+    if convergencia(betas, betas_nuevas) or i >= max_iter:
         betas = betas_nuevas
         break
-    
     betas = betas_nuevas
     i += 1
 
 print(f"\n✅ Convergencia alcanzada en {i} iteraciones.")
 
-# --- IMPRIMIR LA ECUACIÓN ---
+# ---------------------------
+# DESNORMALIZAR COEFICIENTES
+# ---------------------------
+beta0_orig = betas[0] - np.sum((betas[1:] * X_mean) / X_std)
+beta_orig = betas[1:] / X_std
+
+# ---------------------------
+# IMPRIMIR ECUACIÓN FINAL
+# ---------------------------
 print("\n" + "="*40)
-print("ECUACIÓN DE REGRESIÓN (Descenso del Gradiente):")
-
-ecuacion_str = f"Ŷ = {betas[0]:.4f}"
-for j in range(1, len(betas)):
-    coef = betas[j]
-    signo = "+" if coef >= 0 else "-"
-    valor_abs = abs(coef)
-    ecuacion_str += f" {signo} {valor_abs:.4f}*X{j}"
-
+print("ECUACIÓN DE REGRESIÓN (Descenso del Gradiente, escala original):")
+ecuacion_str = f"Ŷ = {beta0_orig:.6f}"
+for j in range(len(beta_orig)):
+    signo = "+" if beta_orig[j] >= 0 else "-"
+    valor_abs = abs(beta_orig[j])
+    ecuacion_str += f" {signo} {valor_abs:.6f}*X{j+1}"
 print(ecuacion_str)
 print("="*40)
