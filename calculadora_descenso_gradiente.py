@@ -1,9 +1,7 @@
 import numpy as np
 import pandas as pd
 
-# ---------------------------
 # CARGA DE DATOS
-# ---------------------------
 df = pd.read_csv("dataset_Facebook.csv", sep=";")
 
 # Seleccionar columnas de interés y eliminar filas con NaN
@@ -14,9 +12,9 @@ df = df[cols].dropna()
 Y = df["Total Interactions"].to_numpy(dtype=float)
 X = df[["like", "comment", "share", "Category", "Post Hour", "Post Month"]].to_numpy(dtype=float)
 
-# ---------------------------
+
+
 # NORMALIZACIÓN
-# ---------------------------
 X_mean = np.mean(X, axis=0)
 X_std = np.std(X, axis=0)
 X_norm = (X - X_mean) / X_std
@@ -25,9 +23,8 @@ X_norm = (X - X_mean) / X_std
 m = len(Y)
 X_norm = np.hstack((np.ones((m, 1)), X_norm))
 
-# ---------------------------
+
 # PARÁMETROS DESCENSO DEL GRADIENTE
-# ---------------------------
 eta = 0.01       # tasa de aprendizaje
 epsilon = 1e-6   # tolerancia
 betas = np.zeros(X_norm.shape[1])
@@ -48,9 +45,8 @@ def gradiente(betas):
 def convergencia(b0, b1):
     return abs(mse(b1) - mse(b0)) < epsilon
 
-# ---------------------------
+
 # DESCENSO DEL GRADIENTE
-# ---------------------------
 i = 1
 while True:
     grad = gradiente(betas)
@@ -65,15 +61,13 @@ while True:
 
 print(f"\n✅ Convergencia alcanzada en {i} iteraciones.")
 
-# ---------------------------
+
 # DESNORMALIZAR COEFICIENTES
-# ---------------------------
 beta0_orig = betas[0] - np.sum((betas[1:] * X_mean) / X_std)
 beta_orig = betas[1:] / X_std
 
-# ---------------------------
+
 # IMPRIMIR ECUACIÓN FINAL
-# ---------------------------
 print("\n" + "="*40)
 print("ECUACIÓN DE REGRESIÓN (Descenso del Gradiente, escala original):")
 ecuacion_str = f"Ŷ = {beta0_orig:.6f}"
